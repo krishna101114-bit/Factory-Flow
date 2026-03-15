@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FactoryFlow AI — Advanced Production Scheduling</title>
+<meta name="description" content="AI-powered production scheduling with workers, costs, hot jobs, overtime, bottleneck alternatives and more."/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙</text></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F0F2F5;--surface:#fff;--s2:#F7F8FA;--s3:#EEF0F3;
+  --b:#E1E4EA;--b2:#C8CDD6;--b3:#A8B0BE;
+  --ac:#0052CC;--al:#E6EEFF;--am:#B3CCFF;--ad:#003D99;--ah:#EBF0FF;
+  --tx:#172B4D;--tm:#42526E;--td:#6B778C;--tx2:#97A0AF;
+  --gr:#006644;--gb:#DDFBE9;--gm:#7EE2A8;
+  --re:#BF2600;--rb:#FFEBE6;--rm:#FF8F73;
+  --am2:#FF8B00;--ab2:#FFF7E0;
+  --pu:#403294;--pb:#EAE6FF;--pm:#8777D9;
+  --cy:#006C8A;--cb:#E6FCFF;
+  --r4:4px;--r8:8px;--r12:12px;--r16:16px;
+  --sh0:0 1px 2px rgba(9,30,66,.06);
+  --sh1:0 1px 4px rgba(9,30,66,.08),0 2px 8px rgba(9,30,66,.04);
+  --sh2:0 4px 16px rgba(9,30,66,.1),0 1px 3px rgba(9,30,66,.06);
+  --sh3:0 8px 28px rgba(9,30,66,.12),0 2px 6px rgba(9,30,66,.08);
+}
+html,body{height:100%;background:var(--bg);font-family:'IBM Plex Sans',sans-serif;color:var(--tx);font-size:14px;line-height:1.5}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:9px}
+::-webkit-scrollbar-thumb:hover{background:var(--b3)}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes thinking{0%,80%,100%{transform:scale(.55);opacity:.35}40%{transform:scale(1);opacity:1}}
+@keyframes barIn{from{width:0}to{width:var(--w,100%)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,139,0,.4)}50%{box-shadow:0 0 0 6px rgba(255,139,0,0)}}
+
+.fi{animation:fadeIn .32s cubic-bezier(.22,1,.36,1) both}
+.mi{animation:msgIn .28s cubic-bezier(.22,1,.36,1) both}
+.hot-glow{animation:glow 1.8s ease infinite}
+
+/* ── App shell ───────────────────────────────────── */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ─────────────────────────────────────── */
+#sidebar{width:252px;min-width:252px;background:var(--surface);border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh0)}
+.logo-wrap{padding:16px 15px 13px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:10px}
+.logo-icon{width:35px;height:35px;border-radius:9px;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0;box-shadow:0 2px 8px rgba(0,82,204,.25)}
+.logo-name{font-weight:700;font-size:14px;letter-spacing:-.01em}
+.logo-tag{font-size:9px;color:var(--ac);font-weight:700;letter-spacing:.1em;margin-top:1px}
+.sbar-sec{padding:11px 13px 4px;font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx2)}
+.sess-list{flex:1;overflow-y:auto;padding:3px 7px}
+.sess-item{padding:8px 9px;border-radius:var(--r8);cursor:pointer;transition:background .12s;margin-bottom:2px;border:1px solid transparent}
+.sess-item:hover{background:var(--s2)}
+.sess-item.act{background:var(--al);border-color:var(--am)}
+.sess-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess-meta{font-size:10px;color:var(--td);margin-top:2px}
+.new-sess{margin:9px;padding:9px;border-radius:var(--r8);border:1.5px dashed var(--b2);background:none;cursor:pointer;font-family:inherit;font-size:12px;color:var(--td);transition:all .14s;display:flex;align-items:center;justify-content:center;gap:6px;width:calc(100% - 18px)}
+.new-sess:hover{border-color:var(--ac);color:var(--ac);background:var(--ah)}
+.sidebar-footer{padding:11px 12px;border-top:1px solid var(--b);display:flex;flex-direction:column;gap:8px}
+.upload-mini{width:100%;padding:8px;border-radius:var(--r8);border:1px solid var(--b);background:var(--s2);cursor:pointer;font-family:inherit;font-size:12px;color:var(--tm);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .14s}
+.upload-mini:hover{background:var(--al);border-color:var(--am);color:var(--ac)}
+
+/* ── Main ────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── Top bar ─────────────────────────────────────── */
+#topbar{background:var(--surface);border-bottom:1px solid var(--b);padding:0 22px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:var(--sh0)}
+.breadcrumb{font-size:12px;color:var(--td);display:flex;align-items:center;gap:5px}
+.breadcrumb strong{color:var(--tx);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.b-ai{background:var(--al);color:var(--ac)}
+.b-ok{background:var(--gb);color:var(--gr)}
+.b-warn{background:var(--ab2);color:var(--am2)}
+.b-demo{background:var(--pb);color:var(--pu)}
+.b-hot{background:#FFF0E0;color:#C05000;border:1px solid #FFCC80}
+
+/* ── API key bar ─────────────────────────────────── */
+#api-bar{background:var(--ab2);border-bottom:1px solid #FFD566;padding:7px 22px;display:flex;align-items:center;gap:10px;font-size:12px;color:#5E4200;flex-shrink:0}
+#api-bar input{flex:1;max-width:340px;border:1px solid #F0C040;border-radius:6px;padding:5px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:#fff;outline:none}
+#api-bar input:focus{border-color:var(--ac);box-shadow:0 0 0 2px rgba(0,82,204,.12)}
+.bar-save{padding:5px 12px;border-radius:6px;background:var(--ac);color:#fff;border:none;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer}
+.bar-save:hover{background:var(--ad)}
+.bar-close{cursor:pointer;font-size:15px;color:var(--td);background:none;border:none;margin-left:auto;font-family:inherit}
+
+/* ── Chat area ───────────────────────────────────── */
+#chat{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:13px}
+.msg{display:flex;gap:9px}
+.msg.user{flex-direction:row-reverse}
+.av{width:31px;height:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.av-ai{background:var(--ac);color:#fff}
+.av-u{background:linear-gradient(135deg,#0052CC,#403294);color:#fff}
+.bub{max-width:74%;padding:10px 14px;border-radius:var(--r12);font-size:13px;line-height:1.62}
+.bub.ai{background:var(--surface);border:1px solid var(--b);color:var(--tx);border-radius:3px var(--r12) var(--r12) var(--r12);box-shadow:var(--sh0)}
+.bub.user{background:var(--ac);color:#fff;border-radius:var(--r12) 3px var(--r12) var(--r12)}
+.bub a{color:var(--ac);cursor:pointer;text-decoration:underline}
+.bub.user a{color:#9FC8FF}
+.bub strong{font-weight:600}
+.bub ul,.bub ol{margin:5px 0 0 16px}
+.bub li{margin-bottom:3px}
+.td1,.td2,.td3{width:7px;height:7px;border-radius:50%;background:var(--b2);display:inline-block;animation:thinking .9s ease infinite}
+.td2{animation-delay:.15s}.td3{animation-delay:.3s}
+
+/* ── Input bar ───────────────────────────────────── */
+#ibar{background:var(--surface);border-top:1px solid var(--b);padding:12px 22px;display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+#txt{flex:1;border:1px solid var(--b2);border-radius:var(--r8);padding:9px 13px;font-family:inherit;font-size:13px;color:var(--tx);background:var(--surface);outline:none;resize:none;line-height:1.5;max-height:120px;min-height:40px;transition:border-color .14s,box-shadow .14s}
+#txt:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(0,82,204,.1)}
+#txt::placeholder{color:var(--tx2)}
+.ibtn{width:38px;height:38px;border-radius:var(--r8);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .14s}
+.ibtn-send{background:var(--ac);color:#fff;font-size:16px}
+.ibtn-send:hover{background:var(--ad);transform:translateY(-1px)}
+.ibtn-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.ibtn-att{background:var(--s2);color:var(--td);font-size:15px;border:1px solid var(--b)}
+.ibtn-att:hover{background:var(--al);color:var(--ac);border-color:var(--am)}
+
+/* ── Empty state ─────────────────────────────────── */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:36px}
+.empty-ic{font-size:46px;margin-bottom:14px;opacity:.6}
+.empty-h{font-size:17px;font-weight:700;margin-bottom:5px}
+.empty-p{font-size:13px;color:var(--td);max-width:400px;line-height:1.65}
+.sugg-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px;justify-content:center}
+.sugg{padding:6px 13px;border-radius:99px;border:1px solid var(--b2);background:var(--surface);font-size:12px;color:var(--tm);cursor:pointer;transition:all .14s;font-family:inherit}
+.sugg:hover{border-color:var(--ac);color:var(--ac);background:var(--ah)}
+
+/* ── Cards ───────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--b);border-radius:var(--r12);box-shadow:var(--sh1);overflow:hidden}
+.card-hd{padding:11px 15px;border-bottom:1px solid var(--b);background:var(--s2);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:600}
+.card-sub{font-size:11px;color:var(--td);margin-top:1px}
+
+/* ── Tabs ────────────────────────────────────────── */
+.tab-row{display:flex;gap:1px;padding:0 15px;border-bottom:1px solid var(--b);background:var(--s2);overflow-x:auto;flex-shrink:0}
+.tab{padding:8px 12px;font-size:12px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--td);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .13s;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--tm)}
+.tab.on{color:var(--ac);font-weight:600;border-bottom-color:var(--ac)}
+
+/* ── Stats grid ──────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;padding:13px 15px;border-bottom:1px solid var(--b)}
+.kpi{background:var(--s2);border:1px solid var(--b);border-radius:var(--r8);padding:10px 12px}
+.kpi-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--td);margin-bottom:3px}
+.kpi-val{font-size:19px;font-weight:700;font-family:'IBM Plex Mono',monospace;line-height:1}
+.kpi-sub{font-size:10px;color:var(--td);margin-top:2px}
+
+/* ── Gantt ───────────────────────────────────────── */
+.gantt-wrap{overflow-x:auto;padding:13px 15px}
+.gantt-hdr{display:flex;padding-left:108px;margin-bottom:3px}
+.gantt-hdr-cell{font-size:9px;color:var(--tx2);font-family:'IBM Plex Mono',monospace;flex:none}
+.gantt-row{display:flex;align-items:center;height:42px;border-bottom:1px solid var(--b)}
+.gantt-row:last-child{border-bottom:none}
+.gantt-lbl{width:108px;min-width:108px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--tm);padding-right:8px;flex-shrink:0}
+.gantt-track{flex:1;position:relative;height:42px;display:flex;align-items:center}
+.gbar{position:absolute;height:26px;border-radius:4px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;cursor:pointer;transition:filter .12s,transform .12s;border:1.5px solid transparent}
+.gbar:hover{filter:brightness(.88);transform:scaleY(1.1);z-index:5}
+.gbar.hot-bar{border-color:var(--am2)!important;box-shadow:0 0 0 2px rgba(255,139,0,.2)}
+.grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--b);opacity:.7}
+
+/* ── Table ───────────────────────────────────────── */
+.dt{width:100%;border-collapse:collapse;font-size:12px}
+.dt th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--td);background:var(--s2);border-bottom:1px solid var(--b);white-space:nowrap}
+.dt td{padding:8px 10px;border-bottom:1px solid var(--b);color:var(--tm)}
+.dt tr:last-child td{border-bottom:none}
+.dt tr:hover td{background:var(--s2)}
+.mono{font-family:'IBM Plex Mono',monospace;font-weight:500;color:var(--tx)}
+
+/* ── Chips ───────────────────────────────────────── */
+.chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600;gap:3px}
+.ch-ok{background:var(--gb);color:var(--gr)}
+.ch-late{background:var(--rb);color:var(--re)}
+.ch-hot{background:#FFF0E0;color:#C05000;border:1px solid #FFCC80}
+.ch-ot{background:var(--ab2);color:var(--am2)}
+.ch-u{background:#E6FCFF;color:#006C8A}
+.ch-m{background:var(--pb);color:var(--pu)}
+.ch-warn{background:var(--ab2);color:#7A4800}
+
+/* ── Worker cards ────────────────────────────────── */
+.worker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px;padding:13px 15px}
+.worker-card{background:var(--s2);border:1px solid var(--b);border-radius:var(--r8);padding:11px 12px}
+.worker-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;margin-bottom:8px}
+.worker-name{font-size:12px;font-weight:600;margin-bottom:2px}
+.worker-role{font-size:10px;color:var(--td);margin-bottom:7px}
+.worker-stat{font-size:11px;color:var(--tm);display:flex;justify-content:space-between;padding:2px 0}
+.util-bar-wrap{height:4px;background:var(--b);border-radius:99px;overflow:hidden;margin-top:6px}
+.util-bar{height:100%;border-radius:99px;animation:barIn .9s cubic-bezier(.22,1,.36,1) both}
+
+/* ── Cost table ──────────────────────────────────── */
+.cost-section{padding:13px 15px}
+.cost-total{background:linear-gradient(135deg,var(--ac),var(--pu));color:#fff;border-radius:var(--r12);padding:16px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.cost-total-lbl{font-size:11px;font-weight:600;opacity:.8;letter-spacing:.05em;text-transform:uppercase}
+.cost-total-val{font-size:28px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.cost-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--b)}
+.cost-row:last-child{border-bottom:none}
+.cost-ic{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.cost-bar-wrap{flex:1;height:6px;background:var(--s3);border-radius:99px;overflow:hidden}
+.cost-bar{height:100%;border-radius:99px;animation:barIn .8s cubic-bezier(.22,1,.36,1) both}
+.cost-amt{font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;width:60px;text-align:right}
+
+/* ── Bottleneck alternatives ─────────────────────── */
+.alt-card{background:var(--s2);border:1px solid var(--b);border-radius:var(--r8);padding:12px 14px;margin-bottom:8px}
+.alt-card:last-child{margin-bottom:0}
+.alt-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px}
+.alt-title{font-size:12px;font-weight:600}
+.alt-impact{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
+.alt-body{font-size:11px;color:var(--tm);line-height:1.6;margin-bottom:8px}
+.alt-metrics{display:flex;gap:10px}
+.alt-m{font-size:10px;color:var(--td)}
+.alt-m strong{color:var(--tx);font-weight:600}
+
+/* ── Hot jobs ────────────────────────────────────── */
+.hot-job-card{border:1.5px solid var(--am2);background:#FFFBF0;border-radius:var(--r8);padding:11px 13px;margin-bottom:8px;position:relative}
+.hot-job-card:last-child{margin-bottom:0}
+.hot-badge{position:absolute;top:-1px;right:10px;background:var(--am2);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:.06em}
+.hot-id{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:3px}
+.hot-row{display:flex;justify-content:space-between;font-size:11px;color:var(--tm);padding:2px 0}
+
+/* ── Overtime panel ──────────────────────────────── */
+.ot-section{padding:13px 15px}
+.ot-banner{background:var(--ab2);border:1px solid #FFD566;border-radius:var(--r8);padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
+.ot-rec{background:var(--surface);border:1px solid var(--b);border-radius:var(--r8);padding:11px 13px;margin-bottom:8px}
+.ot-rec-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.ot-rec-title{font-size:12px;font-weight:600}
+.ot-rec-cost{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--am2)}
+
+/* ── Insights ────────────────────────────────────── */
+.ins-item{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--b)}
+.ins-item:last-child{border-bottom:none}
+.ins-ic{width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.ins-title{font-size:12px;font-weight:600;margin-bottom:2px}
+.ins-text{font-size:11px;color:var(--tm);line-height:1.55}
+
+/* ── Bn bar ──────────────────────────────────────── */
+.bn-row{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--b)}
+.bn-row:last-child{border-bottom:none}
+.bn-lbl{width:72px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--tm)}
+.bn-tr{flex:1;height:6px;background:var(--s3);border-radius:99px;overflow:hidden}
+.bn-f{height:100%;border-radius:99px;animation:barIn .8s cubic-bezier(.22,1,.36,1) both}
+.bn-p{font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;width:34px;text-align:right}
+.bn-note{font-size:10px;color:var(--td);flex:1;margin-left:6px}
+
+/* ── Scroll padding ──────────────────────────────── */
+.tab-body{overflow-y:auto;max-height:420px}
+
+@media(max-width:680px){
+  #sidebar{display:none}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ═══ SIDEBAR ══════════════════════════════════════════════════════ -->
+<div id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-icon">⚙</div>
+    <div><div class="logo-name">FactoryFlow AI</div><div class="logo-tag">OPEN · FREE · OPTIMIZED</div></div>
+  </div>
+  <button class="new-sess" onclick="newSess()"><span style="font-size:15px">+</span> New Schedule</button>
+  <div class="sbar-sec">Sessions</div>
+  <div class="sess-list" id="sess-list"></div>
+  <div class="sidebar-footer">
+    <input type="file" id="f-side" accept=".csv" style="display:none" onchange="handleFile(this)">
+    <button class="upload-mini" onclick="document.getElementById('f-side').click()">📁 Upload Orders CSV</button>
+    <div style="font-size:10px;color:var(--tx2);text-align:center">
+      CSV · Max 10MB &nbsp;·&nbsp; <a href="sample_orders.csv" download style="color:var(--ac)">Download sample ↓</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- API key bar -->
+  <div id="api-bar">
+    <span>⚡ Add your <strong>Anthropic API key</strong> for full Claude AI (or use Demo Mode):</span>
+    <input type="password" id="api-inp" placeholder="sk-ant-api03-…"/>
+    <button class="bar-save" onclick="saveKey()">Save Key</button>
+    <button class="bar-close" onclick="document.getElementById('api-bar').style.display='none'">✕</button>
+  </div>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div class="breadcrumb">FactoryFlow AI › <strong id="sess-title">New Session</strong></div>
+    <div style="display:flex;align-items:center;gap:7px">
+      <span class="badge b-ai" id="mode-badge">⚡ Demo Mode</span>
+      <span class="badge b-ok" id="status-badge">● Ready</span>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div id="chat"></div>
+
+  <!-- Input -->
+  <div id="ibar">
+    <input type="file" id="f-chat" accept=".csv" style="display:none" onchange="handleFile(this)">
+    <button class="ibtn ibtn-att" onclick="document.getElementById('f-chat').click()" title="Upload CSV">📎</button>
+    <textarea id="txt" placeholder="Upload CSV, ask about workers / overtime / costs / hot jobs, or type 'try sample'…" rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"
+      oninput="autoH(this)"></textarea>
+    <button class="ibtn ibtn-send" id="send-btn" onclick="send()">↑</button>
+  </div>
+</div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════════ */
+let sessions=[], curId=null, busy=false;
+let apiKey = localStorage.getItem('ff_key')||'';
+if(apiKey){ document.getElementById('api-inp').value=apiKey; document.getElementById('api-bar').style.display='none'; document.getElementById('mode-badge').textContent='⚡ Claude AI'; document.getElementById('mode-badge').className='badge b-ai'; }
+
+function saveKey(){ const v=document.getElementById('api-inp').value.trim(); if(!v)return; apiKey=v; localStorage.setItem('ff_key',v); document.getElementById('api-bar').style.display='none'; document.getElementById('mode-badge').textContent='⚡ Claude AI'; document.getElementById('mode-badge').className='badge b-ai'; toast('API key saved ✓'); }
+
+/* ════════════════════════════════════════════════════════════════════
+   SESSIONS
+═══════════════════════════════════════════════════════════════════ */
+function mkSess(t){ const id='s'+Date.now(); sessions.unshift({id,title:t||'New Session',msgs:[],orders:[],data:null,ts:new Date()}); curId=id; renderSidebar(); return sessions[0]; }
+function getSess(){ return sessions.find(s=>s.id===curId); }
+function newSess(){ mkSess('New Session'); renderChat(); document.getElementById('sess-title').textContent='New Session'; }
+function switchSess(id){ curId=id; renderSidebar(); renderChat(); document.getElementById('sess-title').textContent=getSess().title; }
+function renderSidebar(){ const el=document.getElementById('sess-list'); if(!sessions.length){el.innerHTML='<div style="padding:18px 10px;text-align:center;font-size:11px;color:var(--tx2)">No sessions yet</div>';return;} el.innerHTML=sessions.map(s=>`<div class="sess-item ${s.id===curId?'act':''}" onclick="switchSess('${s.id}')"><div class="sess-name">${esc(s.title)}</div><div class="sess-meta">${s.orders.length?s.orders.length+' orders':'Empty'} · ${ago(s.ts)}</div></div>`).join(''); }
+function ago(d){ const ms=Date.now()-new Date(d); if(ms<60000)return'just now'; if(ms<3600000)return Math.floor(ms/60000)+'m'; return Math.floor(ms/3600000)+'h'; }
+
+/* ════════════════════════════════════════════════════════════════════
+   CHAT RENDER
+═══════════════════════════════════════════════════════════════════ */
+function renderChat(){
+  const s=getSess(), el=document.getElementById('chat');
+  if(!s||!s.msgs.length){ el.innerHTML=`<div class="empty fi"><div class="empty-ic">🏭</div><div class="empty-h">FactoryFlow AI</div><div class="empty-p">Upload your production orders CSV for an AI-optimized schedule with worker assignments, cost analysis, hot job tracking, overtime insights, and bottleneck alternatives.</div><div class="sugg-row"><button class="sugg" onclick="suggest('try sample data')">Try sample data</button><button class="sugg" onclick="suggest('what CSV format do I need')">CSV format</button><button class="sugg" onclick="suggest('how does optimization work')">How it works</button><button class="sugg" onclick="document.getElementById('f-chat').click()">Upload CSV →</button></div></div>`; return; }
+  el.innerHTML = s.msgs.map((m,i)=>renderMsg(m,i)).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function renderMsg(m,i){
+  const d=`animation-delay:${Math.min(i,10)*22}ms`;
+  if(m.type==='user') return `<div class="msg user mi" style="${d}"><div class="av av-u">You</div><div class="bub user">${esc(m.text)}</div></div>`;
+  if(m.type==='ai')   return `<div class="msg mi" style="${d}"><div class="av av-ai">AI</div><div class="bub ai">${m.html}</div></div>`;
+  if(m.type==='upload') return `<div class="msg user mi" style="${d}"><div class="av av-u">You</div><div class="bub user"><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span>📄</span><strong>${esc(m.fname)}</strong></div><div style="font-size:11px;opacity:.85">${m.rows} orders · ${m.workers} workers configured</div></div></div>`;
+  if(m.type==='result') return `<div class="msg mi" style="${d}"><div class="av av-ai">AI</div><div style="flex:1;max-width:860px">${buildResultCard(m.data)}</div></div>`;
+  if(m.type==='typing') return `<div class="msg" id="typing-ind"><div class="av av-ai">AI</div><div class="bub ai" style="padding:13px 16px"><div class="td1"></div><div class="td2"></div><div class="td3"></div></div></div>`;
+  return '';
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   RESULT CARD  (7 tabs)
+═══════════════════════════════════════════════════════════════════ */
+function buildResultCard(d){
+  const tid='T'+Date.now();
+  const {schedule,workers,costs,bottlenecks,alternatives,hotJobs,overtime,insights,stats}=d;
+  const otR=stats.totalJobs>0?Math.round((stats.totalJobs-stats.lateJobs)/stats.totalJobs*100):100;
+
+  return `<div class="card fi">
+    <div class="card-hd">
+      <div><div class="card-title">✅ Optimized Production Schedule</div><div class="card-sub">${new Date().toLocaleString()} · ${stats.solveTime} · ${stats.status}</div></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${hotJobs?.length?`<span class="badge b-hot hot-glow">🔥 ${hotJobs.length} Hot Jobs</span>`:''}
+        <span class="badge ${stats.status==='OPTIMAL'?'b-ok':'b-warn'}">${stats.status}</span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-lbl">Orders</div><div class="kpi-val">${stats.totalJobs}</div><div class="kpi-sub">scheduled</div></div>
+      <div class="kpi"><div class="kpi-lbl">On-Time</div><div class="kpi-val" style="color:${otR===100?'var(--gr)':otR>=80?'var(--am2)':'var(--re)'}">${otR}%</div><div class="kpi-sub">${stats.lateJobs} late</div></div>
+      <div class="kpi"><div class="kpi-lbl">Utilization</div><div class="kpi-val">${stats.avgUtil}%</div><div class="kpi-sub">avg machines</div></div>
+      <div class="kpi"><div class="kpi-lbl">Total Cost</div><div class="kpi-val" style="font-size:15px">$${(costs?.totalCost||0).toLocaleString()}</div><div class="kpi-sub">this schedule</div></div>
+      <div class="kpi"><div class="kpi-lbl">OT Hours</div><div class="kpi-val" style="color:${(stats.overtimeHours||0)>0?'var(--am2)':'var(--gr)'}">${stats.overtimeHours||0}h</div><div class="kpi-sub">overtime flagged</div></div>
+    </div>
+
+    <div class="tab-row" id="${tid}-tabs">
+      <button class="tab on" onclick="swTab('${tid}',0,this)">📊 Gantt</button>
+      <button class="tab" onclick="swTab('${tid}',1,this)">📋 Jobs</button>
+      <button class="tab" onclick="swTab('${tid}',2,this)">👷 Workers</button>
+      <button class="tab" onclick="swTab('${tid}',3,this)">💰 Costs</button>
+      <button class="tab" onclick="swTab('${tid}',4,this)">🔴 Bottlenecks</button>
+      <button class="tab" onclick="swTab('${tid}',5,this)">🔥 Hot Jobs${hotJobs?.length?` (${hotJobs.length})`:''}</button>
+      <button class="tab" onclick="swTab('${tid}',6,this)">⏰ Overtime</button>
+      <button class="tab" onclick="swTab('${tid}',7,this)">💡 Insights</button>
+    </div>
+
+    <div class="tab-body">
+      <div id="${tid}-0">${buildGantt(schedule,hotJobs)}</div>
+      <div id="${tid}-1" style="display:none">${buildJobsTable(schedule,hotJobs)}</div>
+      <div id="${tid}-2" style="display:none">${buildWorkers(workers)}</div>
+      <div id="${tid}-3" style="display:none">${buildCosts(costs)}</div>
+      <div id="${tid}-4" style="display:none"><div style="padding:13px 15px">${buildBottlenecks(bottlenecks,alternatives)}</div></div>
+      <div id="${tid}-5" style="display:none"><div style="padding:13px 15px">${buildHotJobs(hotJobs,schedule)}</div></div>
+      <div id="${tid}-6" style="display:none">${buildOvertime(overtime,workers)}</div>
+      <div id="${tid}-7" style="display:none"><div style="padding:13px 15px">${buildInsights(insights)}</div></div>
+    </div>
+  </div>`;
+}
+
+function swTab(tid,idx,btn){
+  for(let i=0;i<8;i++){const el=document.getElementById(`${tid}-${idx===i?0:i}`); if(document.getElementById(`${tid}-${i}`)) document.getElementById(`${tid}-${i}`).style.display=i===idx?'':'none';}
+  btn.closest('.tab-row').querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',i===idx));
+}
+
+/* ── GANTT ─────────────────────────────────────── */
+function buildGantt(schedule, hotJobs){
+  if(!schedule?.length) return '<div style="padding:14px;color:var(--td)">No schedule data.</div>';
+  const machines=[...new Set(schedule.map(j=>j.machine))];
+  const hotIds=new Set((hotJobs||[]).map(h=>h.orderId));
+  const allT=schedule.flatMap(j=>[j.startSlot,j.endSlot]);
+  const minT=Math.min(...allT),maxT=Math.max(...allT),range=maxT-minT||1;
+  const pct=v=>((v-minT)/range*100).toFixed(2);
+  const COLS=['#0052CC','#00875A','#403294','#974F0C','#0747A6','#006644','#2196F3','#E91E63'];
+  const mc={};machines.forEach((m,i)=>mc[m]=COLS[i%COLS.length]);
+  const hours=[];for(let h=Math.floor(minT);h<=Math.ceil(maxT);h+=2)hours.push(h);
+
+  const hdr=`<div class="gantt-hdr">${hours.map(h=>`<div class="gantt-hdr-cell" style="min-width:${(2/range*100).toFixed(1)}%">${h}:00</div>`).join('')}</div>`;
+  const rows=machines.map(m=>{
+    const jobs=schedule.filter(j=>j.machine===m),col=mc[m];
+    return `<div class="gantt-row">
+      <div class="gantt-lbl">${m}</div>
+      <div class="gantt-track">
+        ${hours.map((_,i)=>`<div class="grid-line" style="left:${(i*2/range*100).toFixed(2)}%"></div>`).join('')}
+        ${jobs.map(j=>{
+          const l=pct(j.startSlot),w=Math.max(parseFloat(pct(j.endSlot))-parseFloat(l),1.2);
+          const isHot=hotIds.has(j.orderId);
+          const bg=j.isLate?'#FFEBE6':isHot?'#FFF8E0':`${col}1c`;
+          const bc=j.isLate?'#FF5630':isHot?'#FF8B00':col+'55';
+          const tc=j.isLate?'#BF2600':isHot?'#C05000':col;
+          return `<div class="gbar ${isHot?'hot-bar':''}" title="${j.orderId} · ${j.jobType} · ${j.duration}h${j.isLate?' ⚠LATE':''}${isHot?' 🔥HOT':''}" style="left:${l}%;width:${w}%;background:${bg};border-color:${bc};color:${tc}">${j.orderId}${j.isLate?' ⚠':''}${isHot?' 🔥':''}</div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="gantt-wrap"><div style="min-width:500px">${hdr}${rows}</div></div>`;
+}
+
+/* ── JOBS TABLE ────────────────────────────────── */
+function buildJobsTable(schedule,hotJobs){
+  if(!schedule?.length) return '';
+  const hotIds=new Set((hotJobs||[]).map(h=>h.orderId));
+  const sorted=[...schedule].sort((a,b)=>a.startSlot-b.startSlot);
+  return `<div style="overflow-x:auto"><table class="dt">
+    <thead><tr><th>Order</th><th>Machine</th><th>Job Type</th><th>Worker</th><th>Start</th><th>End</th><th>Dur</th><th>Status</th></tr></thead>
+    <tbody>${sorted.map(j=>`<tr>
+      <td><span class="mono">${esc(j.orderId)}</span>${hotIds.has(j.orderId)?` <span class="chip ch-hot">🔥 Hot</span>`:''}</td>
+      <td><span class="mono">${esc(j.machine)}</span></td>
+      <td>${esc(j.jobType)}</td>
+      <td><span style="font-size:11px;color:var(--td)">${esc(j.worker||'—')}</span></td>
+      <td><span class="mono">${fmtT(j.startSlot)}</span></td>
+      <td><span class="mono">${fmtT(j.endSlot)}</span></td>
+      <td><span class="mono">${j.duration}h</span></td>
+      <td>${j.isLate?'<span class="chip ch-late">Late</span>':'<span class="chip ch-ok">On Time</span>'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+/* ── WORKERS ───────────────────────────────────── */
+function buildWorkers(workers){
+  if(!workers?.length) return '<div style="padding:14px;color:var(--td)">No worker data.</div>';
+  const avatarColors=['#0052CC','#00875A','#403294','#974F0C','#006C8A','#BF2600','#2196F3'];
+  return `<div class="worker-grid">${workers.map((w,i)=>{
+    const col=avatarColors[i%avatarColors.length];
+    const utilC=w.utilization>=90?'var(--re)':w.utilization>=75?'var(--am2)':'var(--ac)';
+    return `<div class="worker-card">
+      <div class="worker-av" style="background:${col}">${(w.name||'W').slice(0,2).toUpperCase()}</div>
+      <div class="worker-name">${esc(w.name)}</div>
+      <div class="worker-role">${esc(w.role||'Operator')} · ${esc(w.machine)}</div>
+      <div class="worker-stat"><span>Shift</span><span>${esc(w.shift||'08:00–16:00')}</span></div>
+      <div class="worker-stat"><span>Jobs</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600">${w.jobCount||0}</span></div>
+      <div class="worker-stat"><span>Hours</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600">${w.hoursWorked||0}h${w.overtimeHours>0?` <span class="chip ch-ot">+${w.overtimeHours}h OT</span>`:''}</span></div>
+      <div class="util-bar-wrap"><div class="util-bar" style="--w:${w.utilization||0}%;background:${utilC};width:${w.utilization||0}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px"><span style="color:var(--td)">Utilization</span><span style="font-weight:700;color:${utilC};font-family:'IBM Plex Mono',monospace">${w.utilization||0}%</span></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/* ── COSTS ─────────────────────────────────────── */
+function buildCosts(costs){
+  if(!costs) return '<div style="padding:14px;color:var(--td)">No cost data.</div>';
+  const total=costs.totalCost||0;
+  const items=[
+    {ic:'⚙',label:'Machine Runtime',amt:costs.machineCost||0,col:'#0052CC'},
+    {ic:'👷',label:'Labor (Regular)',amt:costs.laborCost||0,col:'#00875A'},
+    {ic:'⏰',label:'Overtime Labor', amt:costs.overtimeCost||0,col:'#FF8B00'},
+    {ic:'🔧',label:'Setup & Changeover',amt:costs.setupCost||0,col:'#403294'},
+    {ic:'⚠',label:'Delay Penalty',  amt:costs.delayCost||0,col:'#BF2600'},
+  ];
+  return `<div class="cost-section">
+    <div class="cost-total">
+      <div><div class="cost-total-lbl">Total Schedule Cost</div><div class="cost-total-val">$${total.toLocaleString()}</div></div>
+      <div style="text-align:right"><div style="font-size:11px;opacity:.75">Per order avg</div><div style="font-size:18px;font-weight:700;font-family:'IBM Plex Mono',monospace">$${costs.totalJobs?Math.round(total/costs.totalJobs).toLocaleString():'—'}</div></div>
+    </div>
+    ${items.map(it=>`<div class="cost-row">
+      <div class="cost-ic" style="background:${it.col}18">${it.ic}</div>
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:500;margin-bottom:4px">${it.label}</div>
+        <div class="cost-bar-wrap"><div class="cost-bar" style="--w:${total?Math.round(it.amt/total*100):0}%;width:${total?Math.round(it.amt/total*100):0}%;background:${it.col}"></div></div>
+      </div>
+      <div class="cost-amt" style="color:${it.col}">$${it.amt.toLocaleString()}</div>
+    </div>`).join('')}
+    <div style="margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:var(--r8);border:1px solid var(--b)">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--td);margin-bottom:6px">Cost Breakdown</div>
+      ${costs.breakdown?.map(b=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--b)"><span style="color:var(--tm)">${esc(b.label)}</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600">$${b.value.toLocaleString()}</span></div>`).join('')||''}
+    </div>
+  </div>`;
+}
+
+/* ── BOTTLENECKS + ALTERNATIVES ────────────────── */
+function buildBottlenecks(bns,alts){
+  if(!bns?.length) return '<div style="color:var(--td);font-size:12px">No bottlenecks detected — load is balanced.</div>';
+  const bnHtml=bns.map(bn=>{
+    const c=bn.util>=90?'var(--re)':bn.util>=75?'var(--am2)':'var(--ac)';
+    return `<div class="bn-row"><div class="bn-lbl">${esc(bn.machine)}</div><div class="bn-tr"><div class="bn-f" style="background:${c};width:${bn.util}%"></div></div><div class="bn-p" style="color:${c}">${bn.util}%</div><div class="bn-note">${esc(bn.note)}</div></div>`;
+  }).join('');
+
+  const altHtml=alts?.length?`<div style="margin-top:16px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--td);margin-bottom:10px">🔀 Alternative Solutions</div>${alts.map(a=>{
+    const ic=a.impact==='high'?{bg:'var(--gb)',c:'var(--gr)'}:a.impact==='medium'?{bg:'var(--ab2)',c:'var(--am2)'}:{bg:'var(--al)',c:'var(--ac)'};
+    return `<div class="alt-card">
+      <div class="alt-hd">
+        <div class="alt-title">${esc(a.title)}</div>
+        <span class="alt-impact" style="background:${ic.bg};color:${ic.c}">${a.impact?.toUpperCase()||'MEDIUM'} impact</span>
+      </div>
+      <div class="alt-body">${esc(a.description)}</div>
+      <div class="alt-metrics">
+        ${a.metrics?.map(m=>`<div class="alt-m"><strong>${esc(m.value)}</strong> ${esc(m.label)}</div>`).join('')||''}
+      </div>
+    </div>`;
+  }).join('')}</div>`:'';
+
+  return `<div>${bnHtml}</div>${altHtml}`;
+}
+
+/* ── HOT JOBS ──────────────────────────────────── */
+function buildHotJobs(hotJobs,schedule){
+  if(!hotJobs?.length) return '<div style="color:var(--td);font-size:12px;padding:4px 0">No hot jobs in this schedule. Hot jobs are urgent orders requiring immediate attention.</div>';
+  return hotJobs.map(h=>{
+    const slot=schedule?.find(j=>j.orderId===h.orderId);
+    return `<div class="hot-job-card">
+      <div class="hot-badge">🔥 HOT JOB</div>
+      <div class="hot-id">${esc(h.orderId)}</div>
+      <div class="hot-row"><span style="color:var(--td)">Job Type</span><span>${esc(h.jobType)}</span></div>
+      <div class="hot-row"><span style="color:var(--td)">Machine</span><span class="mono">${esc(slot?.machine||h.machine||'—')}</span></div>
+      <div class="hot-row"><span style="color:var(--td)">Scheduled</span><span class="mono">${slot?fmtT(slot.startSlot)+' – '+fmtT(slot.endSlot):'Not scheduled'}</span></div>
+      <div class="hot-row"><span style="color:var(--td)">Due By</span><span style="font-weight:600;color:var(--re)">${esc(h.dueBy||'ASAP')}</span></div>
+      <div class="hot-row"><span style="color:var(--td)">Reason</span><span style="font-size:11px;color:var(--tm)">${esc(h.reason)}</span></div>
+      ${h.action?`<div style="margin-top:8px;padding:7px 9px;background:var(--al);border-radius:var(--r4);font-size:11px;color:var(--ac)"><strong>Recommended action:</strong> ${esc(h.action)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ── OVERTIME ──────────────────────────────────── */
+function buildOvertime(overtime,workers){
+  if(!overtime) return '<div style="padding:14px;color:var(--td)">No overtime data.</div>';
+  const woW=workers?.filter(w=>w.overtimeHours>0)||[];
+  return `<div class="ot-section">
+    <div class="ot-banner">
+      <span style="font-size:18px">⏰</span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#7A4800;margin-bottom:2px">Overtime Summary</div>
+        <div style="font-size:11px;color:#9A5800">${overtime.totalOTHours||0}h overtime across ${woW.length} worker${woW.length!==1?'s':''} · Estimated additional cost: <strong>$${(overtime.overtimeCost||0).toLocaleString()}</strong></div>
+      </div>
+    </div>
+    ${overtime.recommendations?.map(r=>`<div class="ot-rec">
+      <div class="ot-rec-hd">
+        <div class="ot-rec-title">${esc(r.title)}</div>
+        <div class="ot-rec-cost">${r.costSaving?'Save $'+r.costSaving.toLocaleString():esc(r.costLabel||'')}</div>
+      </div>
+      <div style="font-size:11px;color:var(--tm);margin-bottom:7px">${esc(r.description)}</div>
+      ${r.actions?.map(a=>`<div style="font-size:11px;padding:3px 0;border-top:1px solid var(--b);color:var(--td)">→ ${esc(a)}</div>`).join('')||''}
+    </div>`).join('')||''}
+    ${woW.length?`<div style="margin-top:12px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--td);margin-bottom:8px">Workers in Overtime</div><table class="dt"><thead><tr><th>Worker</th><th>Regular Hours</th><th>OT Hours</th><th>OT Rate</th><th>OT Cost</th></tr></thead><tbody>${woW.map(w=>`<tr><td><strong>${esc(w.name)}</strong></td><td><span class="mono">${w.hoursWorked||0}h</span></td><td><span class="chip ch-ot">${w.overtimeHours}h OT</span></td><td><span class="mono">$${w.otRate||45}/h</span></td><td><span class="mono" style="color:var(--am2)">$${((w.overtimeHours||0)*(w.otRate||45)).toLocaleString()}</span></td></tr>`).join('')}</tbody></table></div>`:''}
+  </div>`;
+}
+
+/* ── INSIGHTS ──────────────────────────────────── */
+function buildInsights(ins){
+  if(!ins?.length) return '<div style="color:var(--td);font-size:12px">No insights.</div>';
+  const I={critical:'🔴',warning:'🟡',success:'✅',info:'💡',hot:'🔥',cost:'💰',worker:'👷',overtime:'⏰'};
+  const B={critical:'var(--rb)',warning:'var(--ab2)',success:'var(--gb)',info:'var(--al)',hot:'#FFF0E0',cost:'var(--pb)',worker:'#E6FCFF',overtime:'var(--ab2)'};
+  const TC={critical:'var(--re)',warning:'#7A4800',success:'var(--gr)',info:'var(--ac)',hot:'#C05000',cost:'var(--pu)',worker:'var(--cy)',overtime:'var(--am2)'};
+  return ins.map(i=>`<div class="ins-item"><div class="ins-ic" style="background:${B[i.type]||'var(--s3)'}">${I[i.type]||'💡'}</div><div><div class="ins-title" style="color:${TC[i.type]||'var(--tx)'}">${esc(i.title)}</div><div class="ins-text">${esc(i.text)}</div></div></div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FILE HANDLING
+═══════════════════════════════════════════════════════════════════ */
+function handleFile(inp){
+  const f=inp.files[0]; if(!f)return; inp.value='';
+  const r=new FileReader();
+  r.onload=e=>parseCSV(f.name,e.target.result);
+  r.readAsText(f);
+}
+
+function parseCSV(fname,content){
+  const lines=content.trim().split('\n').filter(l=>l.trim());
+  if(lines.length<2){aiMsg('<div style="color:var(--re)">⚠ CSV needs a header and at least one row.</div>');return;}
+  const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/["\s]/g,''));
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=splitCSV(lines[i]);
+    const row={};
+    headers.forEach((h,j)=>row[h]=(vals[j]||'').trim().replace(/^"|"$/g,''));
+    if(row.order_id||row.orderid||row.id)rows.push(row);
+  }
+  if(!rows.length){aiMsg('<div style="color:var(--re)">⚠ No valid orders found. Ensure CSV has an order_id column.</div>');return;}
+
+  let s=getSess();
+  if(!s){s=mkSess(fname.replace(/\.(csv|xlsx)$/i,''));}
+  else{s.title=fname.replace(/\.(csv|xlsx)$/i,'');document.getElementById('sess-title').textContent=s.title;}
+  s.orders=rows;
+  renderSidebar();
+
+  // Auto-generate workers from machines
+  const workerCount=Math.min(5,Math.ceil(rows.length/3));
+  addMsg({type:'upload',fname,rows:rows.length,workers:workerCount});
+  setStatus('● Optimizing…','blue');
+  runOptimize(rows,fname);
+}
+
+function splitCSV(line){
+  const res=[];let cur='',inQ=false;
+  for(const c of line){if(c==='"'){inQ=!inQ;continue;}if(c===','&&!inQ){res.push(cur);cur='';continue;}cur+=c;}
+  res.push(cur);return res;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   AI OPTIMIZATION
+═══════════════════════════════════════════════════════════════════ */
+const SYSTEM_PROMPT=`You are FactoryFlow AI — an expert manufacturing scheduling system. Given production orders, respond ONLY with valid JSON (no markdown, no backticks).
+
+Required JSON structure:
+{
+  "schedule": [{"orderId":"","machine":"M-01","jobType":"","worker":"Alice","startSlot":8.0,"endSlot":10.5,"duration":2.5,"isLate":false,"dueSlot":17.0}],
+  "workers": [{"name":"Alice","role":"CNC Operator","machine":"M-01","shift":"08:00–16:00","jobCount":3,"hoursWorked":7.5,"overtimeHours":0,"utilization":94,"otRate":45}],
+  "costs": {
+    "totalCost":4250,"machineCost":1800,"laborCost":1600,"overtimeCost":350,"setupCost":300,"delayCost":200,"totalJobs":10,
+    "breakdown":[{"label":"M-01 CNC (5.2h × $85/h)","value":442},{"label":"Alice (7.5h × $35/h)","value":262}]
+  },
+  "bottlenecks": [{"machine":"M-01","util":94,"note":"Critical — primary bottleneck"}],
+  "alternatives": [
+    {"title":"Add Second CNC Machine","description":"Deploying a parallel M-01B CNC unit would reduce bottleneck utilization from 94% to 52%, eliminating all late jobs.","impact":"high","metrics":[{"value":"-42%","label":"utilization"},{"value":"0","label":"late jobs"},{"value":"+$1,200","label":"est. daily cost"}]},
+    {"title":"Extend Shift to 10h","description":"Adding 2h overtime for CNC operators would absorb current overflow without capital investment.","impact":"medium","metrics":[{"value":"+2h","label":"overtime/day"},{"value":"$270","label":"OT cost"},{"value":"-3","label":"late jobs"}]},
+    {"title":"Outsource Milling Jobs","description":"3 milling jobs could be outsourced at $180/job, freeing 6.5h on M-01 for higher-priority cutting jobs.","impact":"medium","metrics":[{"value":"$540","label":"outsource cost"},{"value":"-6.5h","label":"freed capacity"}]}
+  ],
+  "hotJobs": [{"orderId":"ORD-1202","jobType":"Welding","machine":"M-02","dueBy":"14:00 TODAY","reason":"Customer escalation — delivery truck leaves at 15:00","action":"Preempt ORD-1207, move to top of M-02 queue immediately"}],
+  "overtime": {
+    "totalOTHours":2.5,"overtimeCost":270,
+    "recommendations":[
+      {"title":"Reassign 2 jobs to afternoon shift","description":"Moving ORD-1208 and ORD-1210 to the 14:00–18:00 window eliminates 1.5h overtime for Alice.","costSaving":180,"actions":["Notify Alice of schedule change","Update M-03 queue","Confirm with supervisor"]},
+      {"title":"Authorize controlled overtime","description":"If reassignment is not possible, authorize 2.5h overtime — cheaper than delay penalties.","costLabel":"$270 OT vs $450 penalty","actions":["Get supervisor approval","Alert payroll"]}
+    ]
+  },
+  "insights": [
+    {"type":"critical","title":"M-01 CNC bottleneck at 94%","text":"M-01 is the primary throughput constraint. 3 alternative solutions available in Bottlenecks tab."},
+    {"type":"hot","title":"ORD-1202 needs immediate action","text":"Customer escalation — truck leaves at 15:00. Move to top of M-02 queue now."},
+    {"type":"cost","title":"Total schedule cost: $4,250","text":"Overtime accounts for 8.2% ($350). Reassigning 2 jobs could save $180."},
+    {"type":"worker","title":"Alice at 94% utilization","text":"Highest-loaded operator. Monitor for fatigue. Consider cross-training Bob on CNC backup."},
+    {"type":"success","title":"87% on-time delivery","text":"13 of 15 jobs meet due dates. Late jobs are ORD-1202 and ORD-1208."},
+    {"type":"info","title":"Avg machine utilization: 64%","text":"M-03 Press and M-05 Painter have capacity for 4+ additional jobs if needed."}
+  ],
+  "stats":{"totalJobs":15,"lateJobs":2,"avgUtil":64,"totalTardiness":2.8,"overtimeHours":2.5,"solveTime":"1.2s","status":"FEASIBLE"},
+  "summary":"15 orders scheduled across 5 machines. 2 jobs late. ORD-1202 flagged as hot job requiring immediate action."
+}
+
+Rules:
+- startSlot/endSlot = hours from midnight (8.0=08:00, 14.5=14:30)
+- Shift window: 07:00–19:00 (regular). Flag >8h/worker as overtime.
+- No machine overlaps. Sort by priority: urgent=1st, high=2nd, medium=3rd, low=last.
+- Assign workers: ~1 worker per machine. Name them realistically.
+- Machine costs: CNC=$85/h, Welder=$60/h, Press=$45/h, Assembly=$70/h, Painter=$40/h (default if unknown)
+- Labor rate: $35/h regular, $52.50/h overtime (1.5×)
+- Setup cost: setup_time × machine_rate
+- Delay penalty: $150 per late job
+- Hot jobs = urgent priority OR jobs with <2h to due date
+- Generate 3 specific, actionable alternatives for each bottleneck >80%
+- Overtime recommendations must include specific cost savings
+- Insights: 6-8 items covering all key findings`;
+
+async function runOptimize(orders,fname){
+  if(busy)return; busy=true;
+  document.getElementById('send-btn').disabled=true;
+  addMsg({type:'typing'});
+
+  const prompt=`Optimize this production schedule for ${orders.length} manufacturing orders:\n\n${orders.slice(0,60).map(o=>JSON.stringify(o)).join('\n')}\n\nReturn ONLY the JSON object.`;
+  let result=null;
+
+  if(apiKey){
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:SYSTEM_PROMPT,messages:[{role:'user',content:prompt}]})
+      });
+      if(res.ok){
+        const d=await res.json();
+        const raw=d.content?.[0]?.text||'';
+        const clean=raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+        try{result=JSON.parse(clean);}catch{const m=clean.match(/\{[\s\S]*\}/);if(m)result=JSON.parse(m[0]);}
+      }
+    }catch(e){console.error(e);}
+  }
+
+  if(!result) result=demoOptimize(orders);
+
+  removeTyping();
+  const s=getSess();
+  if(s){s.data=result;s.title=fname.replace(/\.(csv|xlsx)$/i,'')+' — '+result.stats.totalJobs+' orders';document.getElementById('sess-title').textContent=s.title;renderSidebar();}
+
+  addMsg({type:'result',data:result});
+  aiMsg(`<strong>Schedule optimized!</strong> ${esc(result.summary||'')}<br><br>Use the <strong>8 tabs</strong> above to explore: Gantt timeline, job assignments, worker utilization, cost breakdown, bottleneck alternatives, hot jobs, overtime insights, and AI recommendations.`);
+  setStatus('● Done','green');
+
+  busy=false;
+  document.getElementById('send-btn').disabled=false;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DEMO OPTIMIZER (no API key)
+═══════════════════════════════════════════════════════════════════ */
+function demoOptimize(orders){
+  const priW={urgent:0,high:1,medium:2,low:3};
+  const sorted=[...orders].sort((a,b)=>(priW[a.priority?.toLowerCase()]??2)-(priW[b.priority?.toLowerCase()]??2));
+
+  const machTypes=['M-01','M-02','M-03','M-04','M-05'];
+  const machNames={M01:'CNC','M-01':'CNC','M-02':'Welder','M-03':'Press','M-04':'Assembly','M-05':'Painter'};
+  const machRates={'M-01':85,'M-02':60,'M-03':45,'M-04':70,'M-05':40};
+  const workerNames=['Alice','Bob','Carlos','Diana','Eva'];
+  const workerRoles={'M-01':'CNC Operator','M-02':'Welder','M-03':'Press Operator','M-04':'Assembly Tech','M-05':'Painter'};
+
+  const next={};machTypes.forEach(m=>next[m]=7);
+  const wHours={};workerNames.forEach((w,i)=>wHours[i]=0);
+
+  const schedule=sorted.map((o,i)=>{
+    const m=machTypes[i%machTypes.length];
+    const dur=Math.round((parseFloat(o.cycle_time||o.cycletime||1.5)+parseFloat(o.setup_time||o.setuptime||0.25))*4)/4;
+    const start=Math.round(next[m]*4)/4;
+    const end=Math.round((start+dur)*4)/4;
+    next[m]=end+0.25;
+    const wi=machTypes.indexOf(m);
+    wHours[wi]=(wHours[wi]||0)+dur;
+    const dueSlot=17;
+    return{orderId:o.order_id||o.orderid||`ORD-${String(i+1).padStart(4,'0')}`,machine:m,jobType:o.job_type||o.jobtype||'Processing',worker:workerNames[wi]||'Worker',startSlot:start,endSlot:end,duration:dur,isLate:end>dueSlot,dueSlot};
+  });
+
+  const late=schedule.filter(j=>j.isLate).length;
+  const hotJobs=schedule.filter(j=>j.isLate||sorted.find(o=>(o.order_id||o.id)===j.orderId&&o.priority?.toLowerCase()==='urgent')).slice(0,3).map(j=>({orderId:j.orderId,jobType:j.jobType,machine:j.machine,dueBy:j.isLate?'OVERDUE':'ASAP',reason:j.isLate?'Will miss due date':'Urgent priority job',action:`Front-load on ${j.machine}, assign senior operator`}));
+
+  const utilMap={};machTypes.forEach(m=>{
+    const busy=schedule.filter(j=>j.machine===m).reduce((s,j)=>s+(j.endSlot-j.startSlot),0);
+    utilMap[m]=Math.min(Math.round(busy/12*100),99);
+  });
+
+  const workers=machTypes.map((m,i)=>{
+    const hrs=wHours[i]||0;const ot=Math.max(0,hrs-8);
+    return{name:workerNames[i],role:workerRoles[m]||'Operator',machine:m,shift:'08:00–16:00',jobCount:schedule.filter(j=>j.machine===m).length,hoursWorked:Math.round(hrs*10)/10,overtimeHours:Math.round(ot*10)/10,utilization:utilMap[m]||0,otRate:45};
+  });
+
+  const totalOT=workers.reduce((s,w)=>s+w.overtimeHours,0);
+  const machineCost=machTypes.reduce((s,m)=>s+schedule.filter(j=>j.machine===m).reduce((ss,j)=>ss+(j.duration*(machRates[m]||50)),0),0);
+  const laborCost=workers.reduce((s,w)=>s+(Math.min(w.hoursWorked,8)*35),0);
+  const overtimeCost=workers.reduce((s,w)=>s+(w.overtimeHours*52.5),0);
+  const setupCost=sorted.reduce((s,o)=>s+parseFloat(o.setup_time||0.25)*45,0);
+  const delayCost=late*150;
+  const totalCost=Math.round(machineCost+laborCost+overtimeCost+setupCost+delayCost);
+
+  const bns=Object.entries(utilMap).filter(([,u])=>u>50).sort(([,a],[,b])=>b-a).map(([m,u])=>({machine:m,util:u,note:u>=90?'Critical bottleneck':u>=75?'High utilization':'Elevated load'}));
+  const alts=bns.filter(b=>b.util>=75).slice(0,2).map(b=>[
+    {title:`Add Parallel ${b.machine} Unit`,description:`A second ${b.machine} would cut utilization from ${b.util}% to ${Math.round(b.util/2)}%, eliminating all queued delays.`,impact:'high',metrics:[{value:`-${Math.round(b.util/2)}%`,label:'utilization'},{value:'0',label:'late jobs'},{value:`+$${machRates[b.machine]||50}/h`,label:'machine cost'}]},
+    {title:`Extend Shift by 2 Hours`,description:`Adding 2h overtime absorbs current overflow at lower cost than capital investment.`,impact:'medium',metrics:[{value:'+2h',label:'per day'},{value:`$${Math.round((machRates[b.machine]||50)*2+52.5*2)}`,label:'daily OT cost'},{value:`-${Math.min(late,2)}`,label:'late jobs'}]},
+  ]).flat().slice(0,4);
+
+  const otRecs=totalOT>0?[{title:'Reassign overflow jobs to day shift',description:`Moving ${Math.ceil(totalOT/2)} jobs earlier eliminates ~${Math.round(totalOT*0.6*10)/10}h overtime.`,costSaving:Math.round(totalOT*0.6*52.5),actions:['Review daily job queue','Update worker schedule','Confirm with floor supervisor']},{title:`Authorize ${Math.round(totalOT)}h controlled overtime`,description:'If reassignment is not possible, authorize overtime — cheaper than delay penalties.',costLabel:`$${Math.round(totalOT*52.5)} OT vs $${late*150} penalties`,actions:['Get supervisor approval','Alert payroll system']}]:[];
+
+  const avgUtil=Math.round(Object.values(utilMap).reduce((a,b)=>a+b,0)/machTypes.length);
+
+  return{
+    schedule,workers,
+    costs:{totalCost,machineCost:Math.round(machineCost),laborCost:Math.round(laborCost),overtimeCost:Math.round(overtimeCost),setupCost:Math.round(setupCost),delayCost,totalJobs:schedule.length,breakdown:workers.map(w=>({label:`${w.name} (${w.hoursWorked}h × $35/h)`,value:Math.round(Math.min(w.hoursWorked,8)*35)}))},
+    bottlenecks:bns.slice(0,5),alternatives:alts,hotJobs,
+    overtime:{totalOTHours:Math.round(totalOT*10)/10,overtimeCost:Math.round(overtimeCost),recommendations:otRecs},
+    insights:[
+      late===0?{type:'success',title:'All jobs on schedule',text:`All ${schedule.length} orders complete before due dates.`}:{type:'critical',title:`${late} late job${late>1?'s':''}`,text:`${late} order${late>1?'s are':' is'} late. Total tardiness: ${Math.round(schedule.filter(j=>j.isLate).reduce((s,j)=>s+(j.endSlot-j.dueSlot),0)*10)/10}h.`},
+      bns[0]?.util>=80?{type:'critical',title:`${bns[0].machine} bottleneck at ${bns[0].util}%`,text:`Primary throughput constraint. ${alts.length} alternative solutions available in Bottlenecks tab.`}:{type:'success',title:'No critical bottlenecks',text:'All machines within healthy utilization range.'},
+      {type:'cost',title:`Total cost: $${totalCost.toLocaleString()}`,text:`Machine runtime: $${Math.round(machineCost).toLocaleString()} · Labor: $${Math.round(laborCost).toLocaleString()} · Overtime: $${Math.round(overtimeCost).toLocaleString()} · Delay penalties: $${delayCost}`},
+      totalOT>0?{type:'overtime',title:`${Math.round(totalOT*10)/10}h overtime flagged`,text:`${workers.filter(w=>w.overtimeHours>0).map(w=>w.name).join(', ')} will exceed 8h shift. See Overtime tab for cost-saving options.`}:{type:'success',title:'No overtime required',text:'All workers finish within regular shift hours.'},
+      hotJobs.length>0?{type:'hot',title:`${hotJobs.length} hot job${hotJobs.length>1?'s require':'requires'} attention`,text:`${hotJobs.map(h=>h.orderId).join(', ')} flagged for immediate action. Check Hot Jobs tab.`}:{type:'info',title:'No hot jobs',text:'No urgent escalations detected in this schedule.'},
+      {type:'worker',title:`Peak worker: ${workers.sort((a,b)=>b.utilization-a.utilization)[0]?.name} at ${workers.sort((a,b)=>b.utilization-a.utilization)[0]?.utilization}%`,text:`${workers.filter(w=>w.utilization>80).length} worker${workers.filter(w=>w.utilization>80).length!==1?'s are':' is'} above 80% — monitor for fatigue.`},
+      {type:'info',title:`Avg machine utilization: ${avgUtil}%`,text:avgUtil<55?'Significant spare capacity available for additional orders.':avgUtil>85?'Near capacity — plan carefully for new orders.':'Healthy balance.'},
+    ],
+    stats:{totalJobs:schedule.length,lateJobs:late,avgUtil,totalTardiness:Math.round(schedule.filter(j=>j.isLate).reduce((s,j)=>s+(j.endSlot-j.dueSlot),0)*10)/10,overtimeHours:Math.round(totalOT*10)/10,solveTime:'<1s (demo)',status:late===0?'OPTIMAL':'FEASIBLE'},
+    summary:`${schedule.length} orders scheduled across ${machTypes.length} machines. ${late===0?'All on time.':late+' late.'} Total cost: $${totalCost.toLocaleString()}.${totalOT>0?` ${Math.round(totalOT*10)/10}h overtime flagged.`:''}${hotJobs.length>0?` ${hotJobs.length} hot job${hotJobs.length>1?'s':''} need immediate attention.`:''}`
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CHAT SEND
+═══════════════════════════════════════════════════════════════════ */
+async function send(){
+  const el=document.getElementById('txt'),text=el.value.trim();
+  if(!text||busy)return;
+  el.value='';el.style.height='auto';
+  let s=getSess();if(!s)s=mkSess('New Session');
+  addMsg({type:'user',text});
+  const low=text.toLowerCase();
+
+  if(low.includes('sample')||low.includes('demo')||low.includes('try')){loadSample();return;}
+  if(low.includes('csv format')||low.includes('what columns')){
+    aiMsg(`<strong>CSV Format</strong><br><br>Required columns:<ul><li><strong>order_id</strong> — unique ID (ORD-1201)</li><li><strong>job_type</strong> — Cutting, Welding, etc.</li><li><strong>machine_required</strong> — machine type</li><li><strong>cycle_time</strong> — hours</li><li><strong>setup_time</strong> — hours (optional)</li><li><strong>due_date</strong> — YYYY-MM-DD</li><li><strong>priority</strong> — urgent / high / medium / low</li></ul><br><a onclick="loadSample()">Load sample data →</a>`);return;
+  }
+  if(low.includes('how')&&(low.includes('work')||low.includes('optim'))){
+    aiMsg(`<strong>FactoryFlow AI Optimization</strong><br><br>1. <strong>Schedule</strong> — Gantt chart with no-overlap machine assignment<br>2. <strong>Workers</strong> — Auto-assign operators, track utilization & overtime<br>3. <strong>Costs</strong> — Machine, labor, overtime, setup, and delay penalty breakdown<br>4. <strong>Bottlenecks</strong> — Detect overloaded machines + 3 specific alternatives<br>5. <strong>Hot Jobs</strong> — Flag urgent orders for immediate action<br>6. <strong>Overtime</strong> — Identify excessive shifts with cost-saving recommendations<br>7. <strong>Insights</strong> — 6-8 AI-generated actionable findings<br><br><a onclick="loadSample()" style="color:var(--ac);font-weight:600">Try sample data →</a>`);return;
+  }
+
+  if(s.data||s.orders.length){
+    busy=true;document.getElementById('send-btn').disabled=true;
+    addMsg({type:'typing'});
+    try{
+      if(!apiKey)throw new Error('no key');
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:700,system:`You are FactoryFlow AI. Be concise. Use HTML (strong,br,ul,li). Context: stats=${JSON.stringify(s.data?.stats||{})}, bottlenecks=${JSON.stringify(s.data?.bottlenecks||[])}, costs=${JSON.stringify(s.data?.costs||{})}, hotJobs=${JSON.stringify(s.data?.hotJobs||[])}.`,messages:[{role:'user',content:text}]})});
+      removeTyping();
+      if(!res.ok)throw new Error('api');
+      const d=await res.json();aiMsg(d.content?.[0]?.text||"Couldn't respond.");
+    }catch{
+      removeTyping();
+      const d=s.data;
+      if(d){
+        const bn=d.bottlenecks?.[0];const st=d.stats;const cost=d.costs;const hot=d.hotJobs;
+        aiMsg(`Based on your schedule:<ul>${bn?`<li><strong>${bn.machine}</strong> is your top bottleneck at ${bn.util}%. ${d.alternatives?.length||0} alternatives available.</li>`:''}${st?.lateJobs>0?`<li>${st.lateJobs} late jobs with $${(cost?.delayCost||0)} in penalties.</li>`:'<li>All jobs are on schedule ✓</li>'}${st?.overtimeHours>0?`<li>${st.overtimeHours}h overtime flagged — $${cost?.overtimeCost||0} additional cost.</li>`:''}${hot?.length?`<li>🔥 ${hot.length} hot job${hot.length>1?'s require':'requires'} immediate attention.</li>`:''}<li>Total schedule cost: <strong>$${(cost?.totalCost||0).toLocaleString()}</strong></li></ul>`);
+      }else aiMsg(`Upload a CSV to begin, or <a onclick="loadSample()">try sample data</a>.`);
+    }
+    busy=false;document.getElementById('send-btn').disabled=false;return;
+  }
+  aiMsg(`Ready to optimize! <a onclick="document.getElementById('f-chat').click()">Upload a CSV</a> or <a onclick="loadSample()">try sample data</a>.`);
+}
+
+function suggest(t){document.getElementById('txt').value=t;send();}
+
+/* ════════════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════════ */
+function addMsg(m){const s=getSess();if(!s)return;s.msgs=s.msgs.filter(x=>x.type!=='typing');s.msgs.push(m);renderChat();}
+function aiMsg(html){addMsg({type:'ai',html});}
+function removeTyping(){const s=getSess();if(s)s.msgs=s.msgs.filter(x=>x.type!=='typing');}
+function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtT(h){return String(Math.floor(h)%24).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');}
+function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+function setStatus(t,c){const b=document.getElementById('status-badge');b.textContent=t;b.className='badge '+(c==='green'?'b-ok':c==='blue'?'b-ai':'b-warn');}
+function toast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;right:20px;background:var(--tx);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;animation:fadeIn .3s ease';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);}
+
+function loadSample(){
+  parseCSV('sample_orders.csv',`order_id,job_type,machine_required,cycle_time,setup_time,due_date,priority,quantity
+ORD-1201,Cutting,CNC,2.5,0.5,2024-02-15,high,1
+ORD-1202,Welding,Welder,1.5,0.25,2024-02-14,urgent,2
+ORD-1203,Milling,CNC,3.0,0.75,2024-02-16,medium,1
+ORD-1204,Assembly,Assembly,4.0,0.5,2024-02-13,urgent,1
+ORD-1205,Cutting,CNC,1.0,0.25,2024-02-15,high,3
+ORD-1206,Painting,Painter,2.0,0.5,2024-02-17,low,1
+ORD-1207,Welding,Welder,2.5,0.5,2024-02-14,high,1
+ORD-1208,Pressing,Press,1.5,0.25,2024-02-16,medium,2
+ORD-1209,Assembly,Assembly,3.0,0.75,2024-02-15,medium,1
+ORD-1210,Cutting,CNC,2.0,0.5,2024-02-16,low,1
+ORD-1211,Welding,Welder,1.0,0.25,2024-02-15,high,4
+ORD-1212,Painting,Painter,3.0,0.5,2024-02-18,medium,1
+ORD-1213,Milling,CNC,2.5,0.5,2024-02-17,high,1
+ORD-1214,Assembly,Assembly,1.5,0.25,2024-02-14,urgent,1
+ORD-1215,Cutting,CNC,3.5,0.75,2024-02-18,low,1`);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+mkSess('Welcome');renderChat();
+setTimeout(()=>{
+  aiMsg(`👋 <strong>Welcome to FactoryFlow AI — Advanced Edition</strong><br><br>Upload your production orders CSV and I'll generate a complete analysis with:<br><ul>
+<li>📊 <strong>Gantt Chart</strong> — machine timelines with hot job highlighting</li>
+<li>👷 <strong>Active Workers</strong> — utilization, shift hours, overtime flags</li>
+<li>💰 <strong>Cost Breakdown</strong> — machine, labor, overtime, delay penalties</li>
+<li>🔴 <strong>Bottleneck Alternatives</strong> — 3 specific solutions per constraint</li>
+<li>🔥 <strong>Hot Job Facilitation</strong> — urgent order escalation & actions</li>
+<li>⏰ <strong>Overtime Insights</strong> — cost-saving recommendations</li>
+<li>💡 <strong>AI Insights</strong> — 8 actionable findings across all dimensions</li>
+</ul><br><a onclick="loadSample()" style="color:var(--ac);font-weight:600;text-decoration:none">▶ Try sample data instantly</a> &nbsp;·&nbsp; <a onclick="document.getElementById('f-chat').click()" style="color:var(--ac)">Upload your CSV</a>`);
+},200);
+</script>
+</body>
+</html>
