@@ -1,0 +1,16 @@
+order_id,job_type,machine_required,cycle_time,setup_time,due_date,priority,quantity
+ORD-1201,Cutting,CNC,2.5,0.5,2024-02-15,high,1
+ORD-1202,Welding,Welder,1.5,0.25,2024-02-14,urgent,2
+ORD-1203,Milling,CNC,3.0,0.75,2024-02-16,medium,1
+ORD-1204,Assembly,Assembly,4.0,0.5,2024-02-13,urgent,1
+ORD-1205,Cutting,CNC,1.0,0.25,2024-02-15,high,3
+ORD-1206,Painting,Painter,2.0,0.5,2024-02-17,low,1
+ORD-1207,Welding,Welder,2.5,0.5,2024-02-14,high,1
+ORD-1208,Pressing,Press,1.5,0.25,2024-02-16,medium,2
+ORD-1209,Assembly,Assembly,3.0,0.75,2024-02-15,medium,1
+ORD-1210,Cutting,CNC,2.0,0.5,2024-02-16,low,1
+ORD-1211,Welding,Welder,1.0,0.25,2024-02-15,high,4
+ORD-1212,Painting,Painter,3.0,0.5,2024-02-18,medium,1
+ORD-1213,Milling,CNC,2.5,0.5,2024-02-17,high,1
+ORD-1214,Assembly,Assembly,1.5,0.25,2024-02-14,urgent,1
+ORD-1215,Cutting,CNC,3.5,0.75,2024-02-18,low,1
